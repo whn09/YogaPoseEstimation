@@ -11,7 +11,7 @@ from gluoncv import data
 from gluoncv.data import mscoco
 from gluoncv.model_zoo import get_model
 from gluoncv.data.transforms.pose import detector_to_simple_pose, heatmap_to_coord
-from helpers.visualize_yoga import cv_plot_keypoints
+from yoga.helpers.visualize_yoga import cv_plot_keypoints
 import cv2
 import time
 import argparse

@@ -5,16 +5,19 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 import cv2
-from tensorflow import keras
-from tensorflow.keras import layers
-from tensorflow.keras.models import load_model
+# from tensorflow import keras
+# from tensorflow.keras import layers
+# from tensorflow.keras.models import load_model
 import numpy as np
 import os
+import pickle
+
 
 np.seterr(divide='ignore', invalid='ignore')
 
 model_path = os.getcwd() + '\\helpers\\model' # get path of saved Keras Model
-model = load_model(model_path)                # load model
+# model = load_model(model_path)                # load model
+model = pickle.load(os.path.join(model_path, 'model_xgb.pkl'))
 
 def predict_pose(angles):
     """
@@ -40,7 +43,8 @@ def predict_pose(angles):
               12: '3 Leg Downward Dog', 
               13: 'Tree', 
               14: 'Triangle', }
-    scores = model.predict(angles)
+    # scores = model.predict(angles)
+    scores = model.predict_proba(angles)
     max_elm = np.amax(scores[0])
     result = np.where(scores[0] == max_elm)
     if result[0][0]:
@@ -112,7 +116,7 @@ def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
     coords *= scale                          # coords were scaled so we have to rescale here
     for i in range(coords.shape[0]):         # In this case, i is always one, only processing a single frame at a time
         pts = coords[i]
-        GREEN = (0,255,0)
+        GREEN = (0, 255, 0)
         RED = (255, 0, 0)
         for jp in joint_pairs:
             if joint_visible[i, jp[0]] and joint_visible[i, jp[1]]:    # if both points above confidence threshold, display a line between them
@@ -150,15 +154,7 @@ def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
                    findAngle(pts[11], pts[13], pts[15], 11, 13, 15),# knee
                    findAngle(pts[12], pts[14], pts[15], 12, 14, 15),# knee
                     ]
-    if all(angles):
-        pose = predict_pose(angles)
-
-          
+    # if all(angles):
+    pose = predict_pose(angles)
+ 
     return img, pose
-
-
-
-
-
-
-
