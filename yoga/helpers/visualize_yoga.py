@@ -15,9 +15,10 @@ import pickle
 
 np.seterr(divide='ignore', invalid='ignore')
 
-model_path = os.getcwd() + '\\helpers\\model' # get path of saved Keras Model
+# model_path = os.getcwd() + '\\helpers\\model' # get path of saved Keras Model
 # model = load_model(model_path)                # load model
-model = pickle.load(os.path.join(model_path, 'model_xgb.pkl'))
+model_path = os.getcwd() + '/yoga/helpers/model'
+model = pickle.load(open(os.path.join(model_path, 'model_xgb.pkl'), 'rb'))
 
 def predict_pose(angles):
     """
@@ -154,7 +155,7 @@ def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
                    findAngle(pts[11], pts[13], pts[15], 11, 13, 15),# knee
                    findAngle(pts[12], pts[14], pts[15], 12, 14, 15),# knee
                     ]
-    # if all(angles):
-    pose = predict_pose(angles)
+    if all(angles):
+        pose = predict_pose(angles)
  
     return img, pose

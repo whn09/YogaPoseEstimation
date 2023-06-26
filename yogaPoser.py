@@ -20,15 +20,21 @@ from imutils.video import VideoStream
 import os
 import pandas as pd
 
-ctx = mx.cpu()
+
+os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
+
+# ctx = mx.cpu()
+ctx = mx.gpu(0)
 #detector_name = 'yolo3_mobilenet1.0_coco'
-detector_name = "ssd_512_mobilenet1.0_coco"       # network for detecting humans
+# detector_name = "ssd_512_mobilenet1.0_coco"       # network for detecting humans
+detector_name = "ssd_512_resnet50_v1_coco"       # network for detecting humans
 
 detector = get_model(detector_name, pretrained=True, ctx=ctx)
 detector.reset_class(classes=['person'], reuse_weights={'person':'person'})  # only bother reporting class labeled "humans"
 detector.hybridize()
 
-estimator = get_model('simple_pose_resnet18_v1b', pretrained='ccd24037', ctx=ctx)  # model used for pose estimation
+# estimator = get_model('simple_pose_resnet18_v1b', pretrained='ccd24037', ctx=ctx)  # model used for pose estimation
+estimator = get_model('simple_pose_resnet152_v1d', pretrained=True, ctx=ctx)  # model used for pose estimation
 estimator.hybridize()
 
 ap = argparse.ArgumentParser()
@@ -41,9 +47,10 @@ using_vid_file = False
 if args['vid'] is not None:         # If getting frames from video
     using_vid_file = True
     print('[INFO] using video file...')
-    vid_path = os.getcwd() + args['vid'][1:]
+    vid_path = os.path.join(os.getcwd(), args['vid'])
+    print('[INFO] vid_path:', vid_path)
     vs = cv2.VideoCapture(vid_path)
-    vid_writer = cv2.VideoWriter(args['outfile'],cv2.VideoWriter_fourcc(*'MJPG'), 10, ( 500, 280), True)  # For outfile writing
+    vid_writer = cv2.VideoWriter(args['outfile'],cv2.VideoWriter_fourcc(*'MJPG'), 10, (910, 512), True)  # For outfile writing  ( 500, 280)
     
 else:                              # If getting frames from webcam (default)
     print('[INFO] using camera...')
@@ -77,16 +84,16 @@ def main():
             print('[ERROR] video file not found, make sure to include path and extension i.e. \'./vid.mp4\'')
             break
         count += 1
-        frame = imutils.resize(frame, width=280)  
+        # frame = imutils.resize(frame, width=280)  
         frame = mx.nd.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).astype('uint8')
+        img = None
         if not skip_frame:
-            x, frame = gcv.data.transforms.presets.ssd.transform_test(frame, short = 512, max_size = 280)
+            x, frame = gcv.data.transforms.presets.ssd.transform_test(frame, short = 512)  # , max_size = 280
             x = x.as_in_context(ctx)
 
             class_IDs, scores, bounding_boxs = detector(x)
 
-            pose_input, upscale_bbox = detector_to_simple_pose(frame, class_IDs, scores, bounding_boxs,
-                                                               output_shape=(128, 96), ctx=ctx)
+            pose_input, upscale_bbox = detector_to_simple_pose(frame, class_IDs, scores, bounding_boxs, ctx=ctx)  # ,output_shape=(128, 96)
             if len(upscale_bbox) > 0:
                 predicted_heatmap = estimator(pose_input)
                 pred_coords, confidence = heatmap_to_coord(predicted_heatmap, upscale_bbox)
@@ -103,11 +110,15 @@ def main():
                 
 
                 img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+                # print(img.shape)
             skip_frame = True
 
         else:
             skip_frame = False
-        img = imutils.resize(img, height = 280, width = 500)    # blowup image for displaying
+        if img is None:
+            continue
+        
+        # img = imutils.resize(img, height = 280, width = 500)    # blowup image for displaying
         
         if pose:
             cv2.putText(img, '{}'.format(pose), (20,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -115,13 +126,13 @@ def main():
             cv2.putText(img, 'No Pose Detected', (20,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
         if using_vid_file:
             vid_writer.write(img)
-        cv2.imshow('Webcam', img)
-        key = cv2.waitKey(1) & 0xFF
+        # cv2.imshow('Webcam', img)
+        # key = cv2.waitKey(1) & 0xFF
 
-        if key == ord("q"):
-            break
+#         if key == ord("q"):
+#             break
 
-    cv2.destroyAllWindows()
+    # cv2.destroyAllWindows()
     if not using_vid_file:
         vs.stop()
     if using_vid_file:
