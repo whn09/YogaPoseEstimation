@@ -37,6 +37,7 @@ def predict_pose(angles):
               5: 'Forward Bend', 
               6: 'Garland', 
               7: 'Half Forward Bend', 
+              
               8: 'High Lunge', 
               9: 'Plank', 
               10: 'Reverse Warrior', 

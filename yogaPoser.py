@@ -38,6 +38,7 @@ estimator = get_model('simple_pose_resnet152_v1d', pretrained=True, ctx=ctx)  # 
 estimator.hybridize()
 
 ap = argparse.ArgumentParser()
+ap.add_argument('-i', '--image', type = str, required = False, help ='image path')
 ap.add_argument('-v', '--vid', type = str, required = False, help ='video path')
 ap.add_argument('-o', '--outfile', default = 'output.avi', help = 'outfile path')
 args = vars(ap.parse_args())
@@ -51,7 +52,8 @@ if args['vid'] is not None:         # If getting frames from video
     print('[INFO] vid_path:', vid_path)
     vs = cv2.VideoCapture(vid_path)
     vid_writer = cv2.VideoWriter(args['outfile'],cv2.VideoWriter_fourcc(*'MJPG'), 10, (910, 512), True)  # For outfile writing  ( 500, 280)
-    
+elif args['image'] is not None:
+    print('[INFO] using image file...')
 else:                              # If getting frames from webcam (default)
     print('[INFO] using camera...')
     vs = VideoStream(src=0).start()
@@ -72,17 +74,20 @@ def main():
     
     while True:    # While there is video frames to process...
 
-        frame = vs.read()
+        if args['image'] is not None:
+            frame = cv2.imread(args['image'])
+        else:
+            frame = vs.read()
                 
         if using_vid_file:
             exists, frame = (frame) #with vid file, frame is a tuple. First value is boolean second is array of pixels
             if not exists: 
                 break          #exit when there are no incoming frames
-        try:
-            frame = np.fliplr(frame)   # I want to display the mirror image of input
-        except ValueError:
-            print('[ERROR] video file not found, make sure to include path and extension i.e. \'./vid.mp4\'')
-            break
+        # try:
+        #     frame = np.fliplr(frame)   # I want to display the mirror image of input
+        # except ValueError:
+        #     print('[ERROR] video file not found, make sure to include path and extension i.e. \'./vid.mp4\'')
+        #     break
         count += 1
         # frame = imutils.resize(frame, width=280)  
         frame = mx.nd.array(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)).astype('uint8')
@@ -97,7 +102,7 @@ def main():
             if len(upscale_bbox) > 0:
                 predicted_heatmap = estimator(pose_input)
                 pred_coords, confidence = heatmap_to_coord(predicted_heatmap, upscale_bbox)
-                img, pose = cv_plot_keypoints(frame, pred_coords, confidence, class_IDs, None, scores,
+                img, pose = cv_plot_keypoints(frame, pred_coords, confidence, class_IDs, bounding_boxs, scores,
                                         box_thresh=0.5, keypoint_thresh=0.15)
 
                 #The following lines were for saving vid info to a file
@@ -131,9 +136,12 @@ def main():
 
 #         if key == ord("q"):
 #             break
+        if args['image'] is not None:
+            cv2.imwrite('result.jpg', img)
+            break
 
     # cv2.destroyAllWindows()
-    if not using_vid_file:
+    if args['image'] is None and not using_vid_file:
         vs.stop()
     if using_vid_file:
         vid_writer.release()
