@@ -11,14 +11,24 @@ import cv2
 import numpy as np
 import os
 import pickle
+from annoy import AnnoyIndex
+from scipy.spatial import distance
 
 
 np.seterr(divide='ignore', invalid='ignore')
 
 # model_path = os.getcwd() + '\\helpers\\model' # get path of saved Keras Model
 # model = load_model(model_path)                # load model
+
 model_path = os.getcwd() + '/yoga/helpers/model'
 model = pickle.load(open(os.path.join(model_path, 'model_xgb.pkl'), 'rb'))
+
+model_path = os.getcwd() + '/yoga/helpers/model'
+f = 8
+u = AnnoyIndex(f, 'angular')  # Length of item vector that will be indexed
+u.load(os.path.join(model_path, 'index_advance.ann'))
+keys = pickle.load(open(os.path.join(model_path, 'keys.pkl'), 'rb'))
+K = 100
 
 def predict_pose(angles):
     """
@@ -26,7 +36,7 @@ def predict_pose(angles):
     Runs angles through model to predict pose
     returns string: confidence of prediction and name of pose
     """
-    POSE_THRESHOLD = 0.8
+    POSE_THRESHOLD = 0.8  # default: 0.8
 
     angles = np.array([(angles)])
     labels = {0:'Bound Angle Pose', 
@@ -37,7 +47,6 @@ def predict_pose(angles):
               5: 'Forward Bend', 
               6: 'Garland', 
               7: 'Half Forward Bend', 
-              
               8: 'High Lunge', 
               9: 'Plank', 
               10: 'Reverse Warrior', 
@@ -49,14 +58,57 @@ def predict_pose(angles):
     scores = model.predict_proba(angles)
     max_elm = np.amax(scores[0])
     result = np.where(scores[0] == max_elm)
-    if result[0][0]:
-        result = result[0][0]
-        if max_elm > POSE_THRESHOLD:
-            #print('{:.1f}% {}'.format(max_elm*100, labels[result]))
-            return '{:.1f}% {}'.format(max_elm*100, labels[result])
+    # print('scores:', scores)
+    # print('max_elm:', max_elm)
+    # print('result:', result)
+    # print('result[0][0]:', result[0][0])
+    result = result[0][0]
+    if max_elm > POSE_THRESHOLD:
+        #print('{:.1f}% {}'.format(max_elm*100, labels[result]))
+        return '{:.1f}% {}'.format(max_elm*100, labels[result])
     else:
         return None
 
+def predict_pose_ann(angles):
+    """
+    Takes a list of list of angles made by the joints of the body in a particular frame.
+    Runs angles through model to predict pose
+    returns string: confidence of prediction and name of pose
+    """
+    POSE_THRESHOLD = 0.5  # default: 0.2
+
+    labels = {0:'Bound Angle Pose', 
+              1: 'Cat Cow', 
+              2: 'Chair Pose', 
+              3: 'Cobra', 
+              4: 'Downward Dog', 
+              5: 'Forward Bend', 
+              6: 'Garland', 
+              7: 'Half Forward Bend', 
+              8: 'High Lunge', 
+              9: 'Plank', 
+              10: 'Reverse Warrior', 
+              11: 'Seated Spinal Twist', 
+              12: '3 Leg Downward Dog', 
+              13: 'Tree', 
+              14: 'Triangle', }
+    comparisons = u.get_nns_by_vector(angles, K)
+    # print('comparisons:', comparisons)
+    pkeys = [keys[comparison] for comparison in comparisons]
+    # print('pkeys:', pkeys)
+    result = pkeys[0]
+    
+    sim_feature = u.get_item_vector(comparisons[0])  # TODO use first item
+    # print('sim_feature:', sim_feature)
+    sim = distance.cosine(angles, sim_feature)
+    # print('sim:', sim)
+    
+    if sim < POSE_THRESHOLD:
+        # print('{:.1f}% {}'.format((1.0-sim)*100, labels[result]))
+        return '{:.1f}% {}'.format((1.0-sim)*100, labels[result])
+    else:
+        return None
+    
 def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
                       box_thresh=0.5, keypoint_thresh=0.2, scale=1.0, **kwargs):
     """Visualize keypoints with OpenCV.
@@ -145,7 +197,8 @@ def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
             b = b / np.linalg.norm(b)
             return np.arccos(np.clip(np.dot(a, b), -1.0, 1.0))
         else:
-            return None
+            # return None
+            return np.nan
 
     angles += [findAngle(pts[7], pts[5], pts[11], 7, 5, 11),  # shoulder
                    findAngle(pts[8], pts[6], pts[12], 8, 6, 12),  # shoulder
@@ -156,7 +209,12 @@ def cv_plot_keypoints(img, coords, confidence, class_ids, bboxes, scores,
                    findAngle(pts[11], pts[13], pts[15], 11, 13, 15),# knee
                    findAngle(pts[12], pts[14], pts[15], 12, 14, 15),# knee
                     ]
-    if all(angles):
-        pose = predict_pose(angles)
+    # print('angles:', angles)
+    # if all(angles):
+    #     pose = predict_pose(angles)
+    pose = predict_pose(angles)
+    # print('pose1:', pose)
+    # pose = predict_pose_ann(angles)
+    # print('pose2:', pose)
  
     return img, pose

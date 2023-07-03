@@ -1,5 +1,6 @@
 gluoncv
-mxnet
+# mxnet
 imutils
 # tensorflow
 xgboost
+annoy

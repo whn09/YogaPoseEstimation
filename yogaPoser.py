@@ -25,7 +25,7 @@ os.environ['MXNET_CUDNN_AUTOTUNE_DEFAULT'] = '0'
 
 # ctx = mx.cpu()
 ctx = mx.gpu(0)
-#detector_name = 'yolo3_mobilenet1.0_coco'
+# detector_name = 'yolo3_mobilenet1.0_coco'
 # detector_name = "ssd_512_mobilenet1.0_coco"       # network for detecting humans
 detector_name = "ssd_512_resnet50_v1_coco"       # network for detecting humans
 
@@ -52,6 +52,7 @@ if args['vid'] is not None:         # If getting frames from video
     print('[INFO] vid_path:', vid_path)
     vs = cv2.VideoCapture(vid_path)
     vid_writer = cv2.VideoWriter(args['outfile'],cv2.VideoWriter_fourcc(*'MJPG'), 10, (910, 512), True)  # For outfile writing  ( 500, 280)
+    # vid_writer = cv2.VideoWriter(args['outfile'],cv2.VideoWriter_fourcc(*'MJPG'), 10, (683, 512), True)  # For outfile writing  ( 500, 280)
 elif args['image'] is not None:
     print('[INFO] using image file...')
 else:                              # If getting frames from webcam (default)
